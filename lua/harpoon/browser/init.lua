@@ -67,4 +67,10 @@ M.set_browse_list = function(new_list)
     emit_changed()
 end
 
+M.open_file_browser = function(path_idx)
+    local entry_path = harpoon.get_browser_config().folders[path_idx]
+    local path = Path:new(entry_path):absolute()
+    require("telescope").extensions.file_browser.file_browser({ path = path })
+end
+
 return M

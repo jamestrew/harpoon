@@ -114,12 +114,24 @@ function M.toggle_quick_menu(opts)
         ),
         { silent = true }
     )
+    vim.api.nvim_buf_set_keymap(
+        Harpoon_bufh,
+        "n",
+        "<CR>",
+        string.format("<Cmd>lua require('harpoon.ui').select_menu_item(%s)<CR>", tostring(opts.mark)),
+        {}
+    )
 end
 
-function M.select_menu_item()
+function M.select_menu_item(mark)
     local idx = vim.fn.line(".")
-    close_menu({ force = true} ) -- TODO: opts.mark?
-    M.nav_file(idx)
+    close_menu({ force = true, mark = mark })
+
+    if mark then
+        M.nav_file(idx)
+    else
+        Browse.open_file_browser(idx)
+    end
 end
 
 function M.on_menu_save(mark)
