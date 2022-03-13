@@ -121,6 +121,22 @@ function M.toggle_quick_menu(opts)
         string.format("<Cmd>lua require('harpoon.ui').select_menu_item(%s)<CR>", tostring(opts.mark)),
         {}
     )
+    vim.cmd(
+        string.format(
+            "autocmd BufWriteCmd <buffer=%s> lua require('harpoon.ui').on_menu_save(%s)",
+            Harpoon_bufh,
+            tostring(opts.mark)
+        )
+    )
+    if global_config.save_on_change then
+        vim.cmd(
+            string.format(
+                "autocmd TextChanged,TextChangedI <buffer=%s> lua require('harpoon.ui').on_menu_save(%s)",
+                Harpoon_bufh,
+                tostring(opts.mark)
+            )
+        )
+    end
 end
 
 function M.select_menu_item(mark)
