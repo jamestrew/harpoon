@@ -61,7 +61,9 @@ end
 
 M.set_browse_list = function(new_list)
     harpoon.get_browser_config().folders = {}
-    for _, path in ipairs(new_list) do
+    for _, entry_path in ipairs(new_list) do
+        local path = Path:new(entry_path)
+        path = path:is_dir() and path:absolute() or path:parent():absolute()
         insert_path(path)
     end
     emit_changed()
