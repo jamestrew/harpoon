@@ -1,6 +1,7 @@
 local harpoon = require("harpoon")
 local popup = require("plenary.popup")
-local Marked = require("harpoon.mark")
+local Mark = require("harpoon.mark")
+local Browse = require("harpoon.browser")
 local utils = require("harpoon.utils")
 local log = require("harpoon.dev").log
 
@@ -70,7 +71,8 @@ local function get_menu_items()
     return indices
 end
 
-function M.toggle_quick_menu()
+function M.toggle_quick_menu(opts)
+    opts = opts or {}
     log.trace("toggle_quick_menu()")
     if Harpoon_win_id ~= nil and vim.api.nvim_win_is_valid(Harpoon_win_id) then
         close_menu()
@@ -78,19 +80,11 @@ function M.toggle_quick_menu()
     end
 
     local win_info = create_window()
-    local contents = {}
+    local contents = opts.mark and Mark.get_contents() or Browse.get_contents()
     local global_config = harpoon.get_global_settings()
 
     Harpoon_win_id = win_info.win_id
     Harpoon_bufh = win_info.bufnr
-
-    for idx = 1, Marked.get_length() do
-        local file = Marked.get_marked_file_name(idx)
-        if file == "" then
-            file = "(empty)"
-        end
-        contents[idx] = string.format("%s", file)
-    end
 
     vim.api.nvim_win_set_option(Harpoon_win_id, "number", true)
     vim.api.nvim_buf_set_name(Harpoon_bufh, "harpoon-menu")
@@ -152,18 +146,18 @@ end
 
 function M.on_menu_save()
     log.trace("on_menu_save()")
-    Marked.set_mark_list(get_menu_items())
+    Mark.set_mark_list(get_menu_items())
 end
 
 function M.nav_file(id)
     log.trace("nav_file(): Navigating to", id)
-    local idx = Marked.get_index_of(id)
-    if not Marked.valid_index(idx) then
+    local idx = Mark.get_index_of(id)
+    if not Mark.valid_index(idx) then
         log.debug("nav_file(): No mark exists for id", id)
         return
     end
 
-    local mark = Marked.get_marked_file(idx)
+    local mark = Mark.get_marked_file(idx)
     local filename = mark.filename
     if filename:sub(1, 1) ~= "/" then
         filename = vim.loop.cwd() .. "/" .. mark.filename
@@ -239,8 +233,8 @@ end
 
 function M.nav_next()
     log.trace("nav_next()")
-    local current_index = Marked.get_current_index()
-    local number_of_items = Marked.get_length()
+    local current_index = Mark.get_current_index()
+    local number_of_items = Mark.get_length()
 
     if current_index == nil then
         current_index = 1
@@ -256,8 +250,8 @@ end
 
 function M.nav_prev()
     log.trace("nav_prev()")
-    local current_index = Marked.get_current_index()
-    local number_of_items = Marked.get_length()
+    local current_index = Mark.get_current_index()
+    local number_of_items = Mark.get_length()
 
     if current_index == nil then
         current_index = number_of_items

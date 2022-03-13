@@ -50,4 +50,13 @@ M.add_folder = function(prompt_bufnr)
     emit_changed()
 end
 
+M.get_contents = function()
+    local contents = {}
+    for _, entry_path in ipairs(harpoon.get_browser_config().folders) do
+        local path = Path:new(entry_path):make_relative(vim.loop.cwd())
+        table.insert(contents, path)
+    end
+    return contents
+end
+
 return M

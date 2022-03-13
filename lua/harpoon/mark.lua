@@ -405,4 +405,17 @@ function M.on(event, cb)
     log.debug("on(): All callbacks:", callbacks)
 end
 
+function M.get_contents()
+    local contents = {}
+
+    for idx = 1, M.get_length() do
+        local file = M.get_marked_file_name(idx)
+        if file == "" then
+            file = "(empty)"
+        end
+        contents[idx] = string.format("%s", file)
+    end
+    return contents
+end
+
 return M
