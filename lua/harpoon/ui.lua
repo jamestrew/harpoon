@@ -137,6 +137,18 @@ function M.toggle_quick_menu(opts)
             )
         )
     end
+    vim.cmd(
+        string.format(
+            "autocmd BufModifiedSet <buffer=%s> set nomodified",
+            Harpoon_bufh
+        )
+    )
+    vim.cmd(
+        string.format(
+            "autocmd BufLeave <buffer> ++nested ++once silent lua require('harpoon.ui').toggle_quick_menu({ mark = %s })",
+            opts.mark
+        )
+    )
 end
 
 function M.select_menu_item(mark)
