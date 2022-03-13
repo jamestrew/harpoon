@@ -59,4 +59,12 @@ M.get_contents = function()
     return contents
 end
 
+M.set_browse_list = function(new_list)
+    harpoon.get_browser_config().folders = {}
+    for _, path in ipairs(new_list) do
+        insert_path(path)
+    end
+    emit_changed()
+end
+
 return M

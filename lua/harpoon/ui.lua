@@ -12,12 +12,13 @@ Harpoon_bufh = nil
 
 -- We save before we close because we use the state of the buffer as the list
 -- of items.
-local function close_menu(force_save)
-    force_save = force_save or false
+local function close_menu(opts)
+    opts = opts or {}
+    opts.force_save = vim.F.if_nil(opts.force_save, false)
     local global_config = harpoon.get_global_settings()
 
-    if global_config.save_on_toggle or force_save then
-        require("harpoon.ui").on_menu_save()
+    if global_config.save_on_toggle or opts.force_save then
+        M.on_menu_save(opts.mark)
     end
 
     vim.api.nvim_win_close(Harpoon_win_id, true)
@@ -73,9 +74,10 @@ end
 
 function M.toggle_quick_menu(opts)
     opts = opts or {}
+    opts.mark = vim.F.if_nil(opts.mark, true)
     log.trace("toggle_quick_menu()")
     if Harpoon_win_id ~= nil and vim.api.nvim_win_is_valid(Harpoon_win_id) then
-        close_menu()
+        close_menu(opts)
         return
     end
 
@@ -96,57 +98,37 @@ function M.toggle_quick_menu(opts)
         Harpoon_bufh,
         "n",
         "q",
-        "<Cmd>lua require('harpoon.ui').toggle_quick_menu()<CR>",
+        string.format(
+            "<Cmd>lua require('harpoon.ui').toggle_quick_menu({ mark = %s })<CR>",
+            tostring(opts.mark)
+        ),
         { silent = true }
     )
     vim.api.nvim_buf_set_keymap(
         Harpoon_bufh,
         "n",
         "<ESC>",
-        "<Cmd>lua require('harpoon.ui').toggle_quick_menu()<CR>",
+        string.format(
+            "<Cmd>lua require('harpoon.ui').toggle_quick_menu({ mark = %s })<CR>",
+            tostring(opts.mark)
+        ),
         { silent = true }
-    )
-    vim.api.nvim_buf_set_keymap(
-        Harpoon_bufh,
-        "n",
-        "<CR>",
-        "<Cmd>lua require('harpoon.ui').select_menu_item()<CR>",
-        {}
-    )
-    vim.cmd(
-        string.format(
-            "autocmd BufWriteCmd <buffer=%s> lua require('harpoon.ui').on_menu_save()",
-            Harpoon_bufh
-        )
-    )
-    if global_config.save_on_change then
-        vim.cmd(
-            string.format(
-                "autocmd TextChanged,TextChangedI <buffer=%s> lua require('harpoon.ui').on_menu_save()",
-                Harpoon_bufh
-            )
-        )
-    end
-    vim.cmd(
-        string.format(
-            "autocmd BufModifiedSet <buffer=%s> set nomodified",
-            Harpoon_bufh
-        )
-    )
-    vim.cmd(
-        "autocmd BufLeave <buffer> ++nested ++once silent lua require('harpoon.ui').toggle_quick_menu()"
     )
 end
 
 function M.select_menu_item()
     local idx = vim.fn.line(".")
-    close_menu(true)
+    close_menu({ force = true} ) -- TODO: opts.mark?
     M.nav_file(idx)
 end
 
-function M.on_menu_save()
+function M.on_menu_save(mark)
     log.trace("on_menu_save()")
-    Mark.set_mark_list(get_menu_items())
+    if mark then
+        Mark.set_mark_list(get_menu_items())
+    else
+        Browse.set_browse_list(get_menu_items())
+    end
 end
 
 function M.nav_file(id)
