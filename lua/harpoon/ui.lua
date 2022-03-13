@@ -94,6 +94,7 @@ function M.toggle_quick_menu(opts)
     vim.api.nvim_buf_set_option(Harpoon_bufh, "filetype", "harpoon")
     vim.api.nvim_buf_set_option(Harpoon_bufh, "buftype", "acwrite")
     vim.api.nvim_buf_set_option(Harpoon_bufh, "bufhidden", "delete")
+    -- TODO: switch to `vim.keymap.set`
     vim.api.nvim_buf_set_keymap(
         Harpoon_bufh,
         "n",
@@ -118,7 +119,10 @@ function M.toggle_quick_menu(opts)
         Harpoon_bufh,
         "n",
         "<CR>",
-        string.format("<Cmd>lua require('harpoon.ui').select_menu_item(%s)<CR>", tostring(opts.mark)),
+        string.format(
+            "<Cmd>lua require('harpoon.ui').select_menu_item(%s)<CR>",
+            tostring(opts.mark)
+        ),
         {}
     )
     vim.cmd(

@@ -32,7 +32,6 @@ local function insert_path(new_path)
     end
 end
 
-
 M.add_folder = function(prompt_bufnr)
     log.trace("add_folder()")
     local current_finder = action_state.get_current_picker(prompt_bufnr).finder
@@ -40,12 +39,13 @@ M.add_folder = function(prompt_bufnr)
 
     local entry_path
     if entry.ordinal == ".." then
-      entry_path = Path:new(current_finder.path)
+        entry_path = Path:new(current_finder.path)
     else
-      entry_path = action_state.get_selected_entry().Path
+        entry_path = action_state.get_selected_entry().Path
     end
 
-    local path = entry_path:is_dir() and entry_path:absolute() or entry_path:parent():absolute()
+    local path = entry_path:is_dir() and entry_path:absolute()
+        or entry_path:parent():absolute()
     insert_path(path)
     emit_changed()
 end
