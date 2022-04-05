@@ -27,7 +27,7 @@ local function close_menu(opts)
     Harpoon_bufh = nil
 end
 
-local function create_window()
+local function create_window(mark)
     log.trace("_create_window()")
     local config = harpoon.get_menu_config()
     local width = config.width or 60
@@ -35,9 +35,10 @@ local function create_window()
     local borderchars = config.borderchars
         or { "─", "│", "─", "│", "╭", "╮", "╯", "╰" }
     local bufnr = vim.api.nvim_create_buf(false, false)
+    local title = mark and "Harpoon" or "Harpoon File Browser"
 
     local Harpoon_win_id, win = popup.create(bufnr, {
-        title = "Harpoon",
+        title = title,
         highlight = "HarpoonWindow",
         line = math.floor(((vim.o.lines - height) / 2) - 1),
         col = math.floor((vim.o.columns - width) / 2),
@@ -81,7 +82,7 @@ function M.toggle_quick_menu(opts)
         return
     end
 
-    local win_info = create_window()
+    local win_info = create_window(opts.mark)
     local contents = opts.mark and Mark.get_contents() or Browse.get_contents()
     local global_config = harpoon.get_global_settings()
 
