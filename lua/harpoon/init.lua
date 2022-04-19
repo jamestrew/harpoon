@@ -6,7 +6,7 @@ local log = Dev.log
 local config_path = vim.fn.stdpath("config")
 local data_path = vim.fn.stdpath("data")
 local user_config = string.format("%s/harpoon.json", config_path)
-local cache_config = string.format("%s/harpoon.json", data_path)
+local cache_config = string.format("%s/tarpoon.json", data_path)
 
 local M = {}
 
@@ -22,6 +22,10 @@ local M = {}
             mark = {
                 marks = {
                 }
+                ... is there anything that could be options?
+            },
+            browser = {
+                folders = { ..., ... } -- list
                 ... is there anything that could be options?
             }
         }
@@ -72,9 +76,8 @@ local function ensure_correct_config(config)
         log.debug("ensure_correct_config(): No config found for:", mark_key)
         projects[mark_key] = {
             mark = { marks = {} },
-            term = {
-                cmds = {},
-            },
+            term = { cmds = {} },
+            browser = { folders = {} },
         }
     end
 
@@ -90,6 +93,11 @@ local function ensure_correct_config(config)
             mark_key
         )
         proj.term = { cmds = {} }
+    end
+
+    if proj.browser == nil then
+        log.debug("ensure_correct_config(): No folders found for", mark_key)
+        proj.browser = { folders = {} }
     end
 
     local marks = proj.mark.marks
@@ -167,7 +175,13 @@ function M.setup(config)
             ["excluded_filetypes"] = { "harpoon" },
             ["mark_branch"] = false,
         },
-    }, expand_dir(c_config), expand_dir(u_config), expand_dir(config))
+    }, expand_dir(
+        c_config
+    ), expand_dir(
+        u_config
+    ), expand_dir(
+        config
+    ))
 
     -- There was this issue where the vim.loop.cwd() didn't have marks or term, but had
     -- an object for vim.loop.cwd()
@@ -240,6 +254,11 @@ end
 function M.get_mark_config()
     log.trace("get_mark_config()")
     return ensure_correct_config(HarpoonConfig).projects[mark_config_key()].mark
+end
+
+function M.get_browser_config()
+    log.trace("get_browser_config()")
+    return ensure_correct_config(HarpoonConfig).projects[mark_config_key()].browser
 end
 
 function M.get_menu_config()

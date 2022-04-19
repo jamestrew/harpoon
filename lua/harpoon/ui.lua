@@ -1,6 +1,7 @@
 local harpoon = require("harpoon")
 local popup = require("plenary.popup")
-local Marked = require("harpoon.mark")
+local Mark = require("harpoon.mark")
+local Browse = require("harpoon.browser")
 local utils = require("harpoon.utils")
 local log = require("harpoon.dev").log
 
@@ -11,12 +12,13 @@ Harpoon_bufh = nil
 
 -- We save before we close because we use the state of the buffer as the list
 -- of items.
-local function close_menu(force_save)
-    force_save = force_save or false
+local function close_menu(opts)
+    opts = opts or {}
+    opts.force_save = vim.F.if_nil(opts.force_save, false)
     local global_config = harpoon.get_global_settings()
 
-    if global_config.save_on_toggle or force_save then
-        require("harpoon.ui").on_menu_save()
+    if global_config.save_on_toggle or opts.force_save then
+        M.on_menu_save(opts.mark)
     end
 
     vim.api.nvim_win_close(Harpoon_win_id, true)
@@ -25,7 +27,7 @@ local function close_menu(force_save)
     Harpoon_bufh = nil
 end
 
-local function create_window()
+local function create_window(mark)
     log.trace("_create_window()")
     local config = harpoon.get_menu_config()
     local width = config.width or 60
@@ -33,9 +35,10 @@ local function create_window()
     local borderchars = config.borderchars
         or { "─", "│", "─", "│", "╭", "╮", "╯", "╰" }
     local bufnr = vim.api.nvim_create_buf(false, false)
+    local title = mark and "Harpoon" or "Harpoon File Browser"
 
     local Harpoon_win_id, win = popup.create(bufnr, {
-        title = "Harpoon",
+        title = title,
         highlight = "HarpoonWindow",
         line = math.floor(((vim.o.lines - height) / 2) - 1),
         col = math.floor((vim.o.columns - width) / 2),
@@ -70,27 +73,21 @@ local function get_menu_items()
     return indices
 end
 
-function M.toggle_quick_menu()
+function M.toggle_quick_menu(opts)
+    opts = opts or {}
+    opts.mark = vim.F.if_nil(opts.mark, true)
     log.trace("toggle_quick_menu()")
     if Harpoon_win_id ~= nil and vim.api.nvim_win_is_valid(Harpoon_win_id) then
-        close_menu()
+        close_menu(opts)
         return
     end
 
-    local win_info = create_window()
-    local contents = {}
+    local win_info = create_window(opts.mark)
+    local contents = opts.mark and Mark.get_contents() or Browse.get_contents()
     local global_config = harpoon.get_global_settings()
 
     Harpoon_win_id = win_info.win_id
     Harpoon_bufh = win_info.bufnr
-
-    for idx = 1, Marked.get_length() do
-        local file = Marked.get_marked_file_name(idx)
-        if file == "" then
-            file = "(empty)"
-        end
-        contents[idx] = string.format("%s", file)
-    end
 
     vim.api.nvim_win_set_option(Harpoon_win_id, "number", true)
     vim.api.nvim_buf_set_name(Harpoon_bufh, "harpoon-menu")
@@ -98,38 +95,50 @@ function M.toggle_quick_menu()
     vim.api.nvim_buf_set_option(Harpoon_bufh, "filetype", "harpoon")
     vim.api.nvim_buf_set_option(Harpoon_bufh, "buftype", "acwrite")
     vim.api.nvim_buf_set_option(Harpoon_bufh, "bufhidden", "delete")
+    -- TODO: switch to `vim.keymap.set`
     vim.api.nvim_buf_set_keymap(
         Harpoon_bufh,
         "n",
         "q",
-        "<Cmd>lua require('harpoon.ui').toggle_quick_menu()<CR>",
+        string.format(
+            "<Cmd>lua require('harpoon.ui').toggle_quick_menu({ mark = %s })<CR>",
+            tostring(opts.mark)
+        ),
         { silent = true }
     )
     vim.api.nvim_buf_set_keymap(
         Harpoon_bufh,
         "n",
         "<ESC>",
-        "<Cmd>lua require('harpoon.ui').toggle_quick_menu()<CR>",
+        string.format(
+            "<Cmd>lua require('harpoon.ui').toggle_quick_menu({ mark = %s })<CR>",
+            tostring(opts.mark)
+        ),
         { silent = true }
     )
     vim.api.nvim_buf_set_keymap(
         Harpoon_bufh,
         "n",
         "<CR>",
-        "<Cmd>lua require('harpoon.ui').select_menu_item()<CR>",
+        string.format(
+            "<Cmd>lua require('harpoon.ui').select_menu_item(%s)<CR>",
+            tostring(opts.mark)
+        ),
         {}
     )
     vim.cmd(
         string.format(
-            "autocmd BufWriteCmd <buffer=%s> lua require('harpoon.ui').on_menu_save()",
-            Harpoon_bufh
+            "autocmd BufWriteCmd <buffer=%s> lua require('harpoon.ui').on_menu_save(%s)",
+            Harpoon_bufh,
+            tostring(opts.mark)
         )
     )
     if global_config.save_on_change then
         vim.cmd(
             string.format(
-                "autocmd TextChanged,TextChangedI <buffer=%s> lua require('harpoon.ui').on_menu_save()",
-                Harpoon_bufh
+                "autocmd TextChanged,TextChangedI <buffer=%s> lua require('harpoon.ui').on_menu_save(%s)",
+                Harpoon_bufh,
+                tostring(opts.mark)
             )
         )
     end
@@ -140,30 +149,42 @@ function M.toggle_quick_menu()
         )
     )
     vim.cmd(
-        "autocmd BufLeave <buffer> ++nested ++once silent lua require('harpoon.ui').toggle_quick_menu()"
+        string.format(
+            "autocmd BufLeave <buffer> ++nested ++once silent lua require('harpoon.ui').toggle_quick_menu({ mark = %s })",
+            opts.mark
+        )
     )
 end
 
-function M.select_menu_item()
+function M.select_menu_item(mark)
     local idx = vim.fn.line(".")
-    close_menu(true)
-    M.nav_file(idx)
+    close_menu({ force = true, mark = mark })
+
+    if mark then
+        M.nav_file(idx)
+    else
+        Browse.open_file_browser(idx)
+    end
 end
 
-function M.on_menu_save()
+function M.on_menu_save(mark)
     log.trace("on_menu_save()")
-    Marked.set_mark_list(get_menu_items())
+    if mark then
+        Mark.set_mark_list(get_menu_items())
+    else
+        Browse.set_browse_list(get_menu_items())
+    end
 end
 
 function M.nav_file(id)
     log.trace("nav_file(): Navigating to", id)
-    local idx = Marked.get_index_of(id)
-    if not Marked.valid_index(idx) then
+    local idx = Mark.get_index_of(id)
+    if not Mark.valid_index(idx) then
         log.debug("nav_file(): No mark exists for id", id)
         return
     end
 
-    local mark = Marked.get_marked_file(idx)
+    local mark = Mark.get_marked_file(idx)
     local filename = mark.filename
     if filename:sub(1, 1) ~= "/" then
         filename = vim.loop.cwd() .. "/" .. mark.filename
@@ -239,8 +260,8 @@ end
 
 function M.nav_next()
     log.trace("nav_next()")
-    local current_index = Marked.get_current_index()
-    local number_of_items = Marked.get_length()
+    local current_index = Mark.get_current_index()
+    local number_of_items = Mark.get_length()
 
     if current_index == nil then
         current_index = 1
@@ -256,8 +277,8 @@ end
 
 function M.nav_prev()
     log.trace("nav_prev()")
-    local current_index = Marked.get_current_index()
-    local number_of_items = Marked.get_length()
+    local current_index = Mark.get_current_index()
+    local number_of_items = Mark.get_length()
 
     if current_index == nil then
         current_index = number_of_items
